@@ -31,7 +31,7 @@ app.get('/', (req, res) => {
 // --- Route 1: Register a New User ---
 app.post('/api/register', async (req, res) => {
     try {
-        const { name, email, password } = req.body;
+        const { name, email, password,role } = req.body;
         
         // 1. Check if the user already exists
         const existingUser = await User.findOne({ email });
@@ -44,7 +44,7 @@ app.post('/api/register', async (req, res) => {
         const hashedPassword = await bcrypt.hash(password, salt);
 
         // 3. Save the new user with the scrambled password
-        const newUser = new User({ name, email, password: hashedPassword });
+        const newUser = new User({ name, email, password: hashedPassword ,role:role ||'student'});
         await newUser.save();
 
         res.status(201).json({ message: "Registration successful!" });
@@ -71,7 +71,10 @@ app.post('/api/login', async (req, res) => {
             return res.status(400).json({ error: "Incorrect password!" });
         }
 
-        res.status(200).json({ message: "Login successful!" });
+        res.status(200).json({ message: "Login successful!" ,
+            name: user.name, 
+            role: user.role
+        });
     } catch (error) {
         console.error("Login error:", error);
         res.status(500).json({ error: "Server error during login" });
@@ -96,12 +99,19 @@ app.post('/api/auth/google', (req, res) => {
         const userEmail = payloadData.email;
         console.log(`✅ Google Login caught for: ${userName} (${userEmail})`);
 
-        // 3. Teleport the user to your LIVE Netlify dashboard, and attach their name to the URL!
-        res.redirect(`https://entre-skill-hub.netlify.app/dashboard.html?name=${encodeURIComponent(userName)}`);
+        const existingUser = await User.findOne({ email: userEmail });
+        
+        if (existingUser && existingUser.role === 'admin') {
+            return res.redirect(`https://entre-skill-hub.netlify.app/admin-dashboard.html?name=${encodeURIComponent(userName)}`);
+        } else if (existingUser && existingUser.role === 'mentor') {
+            return res.redirect(`https://entre-skill-hub.netlify.app/mentor-dashboard.html?name=${encodeURIComponent(userName)}`);
+        } else {
+            // Default student route
+            return res.redirect(`https://entre-skill-hub.netlify.app/dashboard.html?name=${encodeURIComponent(userName)}`);
+        }
         
     } catch (error) {
         console.error("Google Auth Error:", error);
-        // If anything goes wrong, safely send them back to the login page
         res.redirect('https://entre-skill-hub.netlify.app/auth.html');
     }
 });

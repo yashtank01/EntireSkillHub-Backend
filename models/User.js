@@ -17,7 +17,8 @@ const userSchema = new mongoose.Schema({
     skills: {
         type: [String],
         default: [] // UPDATED: Now optional at registration
-    }
+    },
+    role: { type: String, default: 'student', enum: ['student', 'mentor', 'admin'] }
 });
 
 module.exports = mongoose.model('User', userSchema);
