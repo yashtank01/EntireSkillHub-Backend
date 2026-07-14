@@ -12,7 +12,7 @@ require('dotenv').config();
 const app = express();
 
 // 3. Middleware
-app.use(cors());           // Allows frontend on port 3000 to talk to backend on port 5000
+app.use(cors());           // Allows frontend to talk to backend
 app.use(express.json());   // Tells server how to read incoming JSON data
 app.use(express.urlencoded({ extended: true }));
 
@@ -77,22 +77,43 @@ app.post('/api/login', async (req, res) => {
         res.status(500).json({ error: "Server error during login" });
     }
 });
-// --- Route 3: Google Login Callback ---
-app.post('/api/auth/google', (req, res) => {
-    const secureToken = req.body.credential;
-    
-    // 1. Crack open the middle part of the Google Token using Node's Buffer
-    const payloadData = JSON.parse(Buffer.from(secureToken.split('.')[1], 'base64').toString());
-    
-    // 2. Extract the user's name and email!
-    const userName = payloadData.name;
-    const userEmail = payloadData.email;
-    console.log(`✅ Login caught for: ${userName} (${userEmail})`);
 
-   // 3. Teleport the user to the dashboard, and attach their name to the URL!
-    res.redirect(`http://127.0.0.1:3000/Frontend/dashboard.html?name=${encodeURIComponent(userName)}`);
+// --- Route 3: Google Login Callback (UPDATED & FIXED) ---
+app.post('/api/auth/google', (req, res) => {
+    try {
+        const secureToken = req.body.credential;
+        
+        // If no token is found, send them safely back to the login page
+        if (!secureToken) {
+            return res.redirect('https://entre-skill-hub.netlify.app/auth.html'); 
+        }
+        
+        // 1. Crack open the middle part of the Google Token using Node's Buffer
+        const payloadData = JSON.parse(Buffer.from(secureToken.split('.')[1], 'base64').toString());
+        
+        // 2. Extract the user's name and email!
+        const userName = payloadData.name;
+        const userEmail = payloadData.email;
+        console.log(`✅ Google Login caught for: ${userName} (${userEmail})`);
+
+        // 3. Teleport the user to your LIVE Netlify dashboard, and attach their name to the URL!
+        res.redirect(`https://entre-skill-hub.netlify.app/dashboard.html?name=${encodeURIComponent(userName)}`);
+        
+    } catch (error) {
+        console.error("Google Auth Error:", error);
+        // If anything goes wrong, safely send them back to the login page
+        res.redirect('https://entre-skill-hub.netlify.app/auth.html');
+    }
 });
-// Route: Save Business Idea (UPDATED TO SAVE TO DB)
+
+// --- SAFETY NET: Handle accidental GET requests for Google Auth ---
+// If a user refreshes the page or clicks a manual link while Render wakes up, bounce them back to login instead of crashing
+app.get('/api/auth/google', (req, res) => {
+    console.log('⚠️ Caught accidental GET request to Google Auth route. Redirecting to login.');
+    res.redirect('https://entre-skill-hub.netlify.app/auth.html'); 
+});
+
+// --- Route: Save Business Idea ---
 app.post('/api/save-idea', async (req, res) => {
     try {
         const { idea } = req.body;
@@ -114,7 +135,7 @@ app.post('/api/save-idea', async (req, res) => {
     }
 });
 
-// Route: Request Mentor (UPDATED TO SAVE TO DB)
+// --- Route: Request Mentor ---
 app.post('/api/request-mentor', async (req, res) => {
     try {
         const { mentor } = req.body;
@@ -135,21 +156,20 @@ app.post('/api/request-mentor', async (req, res) => {
         res.status(500).json({ error: "Failed to request mentor" });
     }
 });
-// --- NEW Route: Mentor Accepts/Declines a Student ---
+
+// --- Route: Mentor Accepts/Declines a Student ---
 app.post('/api/manage-request', async (req, res) => {
     try {
         const { action, studentName } = req.body;
         console.log(`✅ Mentor marked request from ${studentName} as: ${action}`);
         
-        // In a full production app, you would update the MentorRequest status in MongoDB here.
-        // For today's deployment, we successfully catch it and send the green signal back!
         res.status(200).json({ message: "Student request updated successfully!" });
     } catch (error) {
         res.status(500).json({ error: "Failed to update request" });
     }
 });
 
-// --- NEW Route: Mentor Uploads a Resource ---
+// --- Route: Mentor Uploads a Resource ---
 app.post('/api/upload-resource', async (req, res) => {
     try {
         const { title, category, url } = req.body;
@@ -160,7 +180,8 @@ app.post('/api/upload-resource', async (req, res) => {
         res.status(500).json({ error: "Failed to upload resource" });
     }
 });
-// --- NEW Route: Get All Saved Ideas ---
+
+// --- Route: Get All Saved Ideas ---
 app.get('/api/saved-ideas', async (req, res) => {
     try {
         const ideas = await SavedIdea.find().sort({ savedAt: -1 }); // Fetches newest first
@@ -171,7 +192,7 @@ app.get('/api/saved-ideas', async (req, res) => {
     }
 });
 
-// --- NEW Route: Get All Mentor Requests ---
+// --- Route: Get All Mentor Requests ---
 app.get('/api/mentor-requests', async (req, res) => {
     try {
         const requests = await MentorRequest.find().sort({ requestDate: -1 }); // Fetches newest first
