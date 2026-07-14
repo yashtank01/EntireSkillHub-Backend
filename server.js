@@ -82,7 +82,7 @@ app.post('/api/login', async (req, res) => {
 });
 
 // --- Route 3: Google Login Callback (UPDATED & FIXED) ---
-app.post('/api/auth/google', (req, res) => {
+app.post('/api/auth/google', async (req, res) => {
     try {
         const secureToken = req.body.credential;
         
@@ -99,6 +99,7 @@ app.post('/api/auth/google', (req, res) => {
         const userEmail = payloadData.email;
         console.log(`✅ Google Login caught for: ${userName} (${userEmail})`);
 
+        // Check MongoDB for roles
         const existingUser = await User.findOne({ email: userEmail });
         
         if (existingUser && existingUser.role === 'admin') {
