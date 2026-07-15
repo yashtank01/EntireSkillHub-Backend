@@ -213,6 +213,33 @@ app.get('/api/mentor-requests', async (req, res) => {
         res.status(500).json({ error: "Failed to fetch mentor requests" });
     }
 });
+// --- Route: Get Pending Mentors (For Admin Dashboard) ---
+app.get('/api/pending-mentors', async (req, res) => {
+    try {
+        // Find everyone whose role is 'mentor' but is NOT approved yet
+        const pendingMentors = await User.find({ role: 'mentor', isMentorApproved: false });
+        res.status(200).json(pendingMentors);
+    } catch (error) {
+        console.error("Error fetching pending mentors:", error);
+        res.status(500).json({ error: "Failed to fetch pending mentors" });
+    }
+});
+
+// --- Route: Approve a Mentor (For Admin Dashboard) ---
+app.post('/api/approve-mentor', async (req, res) => {
+    try {
+        const { email } = req.body;
+        console.log(`✅ Admin is approving mentor: ${email}`);
+        
+        // Find the user by their email and flip their switch to true!
+        await User.findOneAndUpdate({ email: email }, { isMentorApproved: true });
+        
+        res.status(200).json({ message: "Mentor approved successfully!" });
+    } catch (error) {
+        console.error("Error approving mentor:", error);
+        res.status(500).json({ error: "Failed to approve mentor" });
+    }
+});
 
 // 6. Start the Server
 const PORT = process.env.PORT || 5000;

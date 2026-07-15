@@ -18,6 +18,7 @@ const userSchema = new mongoose.Schema({
         type: [String],
         default: [] // UPDATED: Now optional at registration
     },
+    isMentorApproved: { type: Boolean, default: false },
     role: { type: String, default: 'student', enum: ['student', 'mentor', 'admin'] }
 });
 
