@@ -19,7 +19,9 @@ const userSchema = new mongoose.Schema({
         default: [] // UPDATED: Now optional at registration
     },
     isMentorApproved: { type: Boolean, default: false },
-    role: { type: String, default: 'student', enum: ['student', 'mentor', 'admin'] }
+    role: { type: String, default: 'student', enum: ['student', 'mentor', 'admin'] },
+    resetPasswordToken: { type: String },
+    resetPasswordExpires: { type: Date }
 });
 
 module.exports = mongoose.model('User', userSchema);

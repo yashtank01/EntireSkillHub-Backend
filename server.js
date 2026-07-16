@@ -7,6 +7,8 @@ const cors = require('cors');
 const User = require('./models/User');
 const MentorRequest = require('./models/MentorRequest');
 require('dotenv').config();
+const nodemailer = require('nodemailer');
+const crypto = require('crypto'); // Built into Node.js, no need to install!
 
 // 2. Initialize App
 const app = express();
@@ -73,7 +75,8 @@ app.post('/api/login', async (req, res) => {
 
         res.status(200).json({ message: "Login successful!" ,
             name: user.name, 
-            role: user.role
+            role: user.role,
+            isMentorApproved: user.isMentorApproved
         });
     } catch (error) {
         console.error("Login error:", error);
@@ -238,6 +241,54 @@ app.post('/api/approve-mentor', async (req, res) => {
     } catch (error) {
         console.error("Error approving mentor:", error);
         res.status(500).json({ error: "Failed to approve mentor" });
+    }
+});
+// --- Route: Forgot Password ---
+app.post('/api/forgot-password', async (req, res) => {
+    try {
+        const { email } = req.body;
+        const user = await User.findOne({ email });
+
+        if (!user) {
+            return res.status(404).json({ error: "No account found with that email!" });
+        }
+
+        // 1. Generate a random, secure token
+        const resetToken = crypto.randomBytes(20).toString('hex');
+        
+        // 2. Save the token and an expiration time (15 mins) to the user's database record
+        user.resetPasswordToken = resetToken;
+        user.resetPasswordExpires = Date.now() + 15 * 60 * 1000;
+        await user.save();
+
+        // 3. Set up Nodemailer to log into your Gmail
+        const transporter = nodemailer.createTransport({
+            service: 'gmail',
+            auth: {
+                user: process.env.EMAIL_USER,
+                pass: process.env.EMAIL_PASS
+            }
+        });
+
+        // 4. Draft the email!
+        const resetLink = `https://entre-skill-hub.netlify.app/reset-password.html?token=${resetToken}`;
+        
+        const mailOptions = {
+            from: process.env.EMAIL_USER,
+            to: user.email,
+            subject: 'EntreSkill Hub - Password Reset',
+            text: `Hello ${user.name},\n\nYou requested a password reset. Click this secure link to reset your password:\n\n${resetLink}\n\nThis link will expire in 15 minutes.\nIf you did not request this, please ignore this email.`
+        };
+
+        // 5. Send it
+        await transporter.sendMail(mailOptions);
+        console.log(`✉️ Password reset email sent to: ${user.email}`);
+        
+        res.status(200).json({ message: "Password reset link sent to your email!" });
+
+    } catch (error) {
+        console.error("Forgot password error:", error);
+        res.status(500).json({ error: "Failed to send email." });
     }
 });
 
