@@ -9,7 +9,7 @@ const MentorRequest = require('./models/MentorRequest');
 require('dotenv').config();
 const nodemailer = require('nodemailer');
 const crypto = require('crypto'); // Built into Node.js, no need to install!
-
+const Content = require('./models/Content');
 // 2. Initialize App
 const app = express();
 
@@ -292,6 +292,30 @@ app.post('/api/forgot-password', async (req, res) => {
     }
 });
 
+// --- Route: Upload New Content (For Admin & Mentor Dashboards) ---
+app.post('/api/upload-content', async (req, res) => {
+    try {
+        const { title, type, category, bodyOrLink, authorName } = req.body;
+        
+        // Create the new piece of content using the data sent from the frontend
+        const newContent = new Content({
+            title,
+            type,
+            category,
+            bodyOrLink,
+            authorName
+        });
+
+        // Save it to MongoDB
+        await newContent.save();
+        console.log(`📚 New ${type} uploaded by ${authorName}: ${title}`);
+        
+        res.status(201).json({ message: "Content uploaded successfully!" });
+    } catch (error) {
+        console.error("Error uploading content:", error);
+        res.status(500).json({ error: "Failed to upload content to the database." });
+    }
+});
 // 6. Start the Server
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
