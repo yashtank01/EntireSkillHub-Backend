@@ -327,6 +327,59 @@ app.get('/api/content', async (req, res) => {
         res.status(500).json({ error: "Failed to fetch training content." });
     }
 });
+
+// ==========================================
+// ROUTE: Save a Business Idea (With Duplicate Check!)
+// ==========================================
+app.post('/api/save-idea', async (req, res) => {
+    try {
+        const { idea, email } = req.body;
+
+        if (!email) {
+            return res.status(400).json({ error: "User email is required to save an idea." });
+        }
+
+        // 🛑 DUPLICATE CHECK: Does this user already have this exact idea saved?
+        const existingIdea = await SavedIdea.findOne({ ideaName: idea, userEmail: email });
+        if (existingIdea) {
+            return res.status(400).json({ error: "You have already bookmarked this idea!" });
+        }
+
+        // If it's new, save it!
+        const newIdea = new SavedIdea({ 
+            ideaName: idea,
+            userEmail: email 
+        });
+        
+        await newIdea.save();
+        res.status(200).json({ message: "Idea saved successfully!" });
+
+    } catch (error) {
+        console.error("Error saving idea:", error);
+        res.status(500).json({ error: "Failed to save idea." });
+    }
+});
+
+// ==========================================
+// ROUTE: Get Bookmarked Ideas for a SPECIFIC User
+// ==========================================
+app.get('/api/saved-ideas', async (req, res) => {
+    try {
+        const userEmail = req.query.email; // We grab the email from the URL
+
+        if (!userEmail) {
+            return res.status(400).json({ error: "Email is required to fetch saved ideas." });
+        }
+
+        // ONLY find ideas that belong to this specific email!
+        const userIdeas = await SavedIdea.find({ userEmail: userEmail }).sort({ createdAt: -1 });
+        
+        res.status(200).json(userIdeas);
+    } catch (error) {
+        console.error("Error fetching saved ideas:", error);
+        res.status(500).json({ error: "Failed to fetch saved ideas." });
+    }
+});
 // 6. Start the Server
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
