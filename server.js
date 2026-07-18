@@ -316,6 +316,17 @@ app.post('/api/upload-content', async (req, res) => {
         res.status(500).json({ error: "Failed to upload content to the database." });
     }
 });
+// --- Route: Get All Content (For Student Dashboard) ---
+app.get('/api/content', async (req, res) => {
+    try {
+        // Find all content and sort by newest first (-1)
+        const allContent = await Content.find().sort({ createdAt: -1 });
+        res.status(200).json(allContent);
+    } catch (error) {
+        console.error("Error fetching content:", error);
+        res.status(500).json({ error: "Failed to fetch training content." });
+    }
+});
 // 6. Start the Server
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
