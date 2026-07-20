@@ -138,6 +138,7 @@ app.post('/api/forgot-password', async (req, res) => {
 app.post('/api/save-idea', async (req, res) => {
     try {
         const { idea, email } = req.body;
+        console.log(`📌 Idea Bookmarked: ${idea} by ${email}`);
         if (!email) return res.status(400).json({ error: "User email is required." });
 
         const existingIdea = await SavedIdea.findOne({ ideaName: idea, userEmail: email });
@@ -154,6 +155,7 @@ app.post('/api/save-idea', async (req, res) => {
 app.get('/api/saved-ideas', async (req, res) => {
     try {
         const userEmail = req.query.email;
+        
         if (!userEmail) return res.status(400).json({ error: "Email is required." });
 
         const userIdeas = await SavedIdea.find({ userEmail: userEmail }).sort({ createdAt: -1 });
@@ -177,6 +179,7 @@ app.get('/api/content', async (req, res) => {
 app.post('/api/request-mentor', async (req, res) => {
     try {
         const { mentor, email } = req.body;
+        console.log(`✉️ Mentor Requested: ${mentor} by ${email}`);
         const existing = await MentorRequest.findOne({ mentorName: mentor, userEmail: email });
         if (existing) return res.status(400).json({ error: "Already requested!" });
 
