@@ -88,11 +88,11 @@ app.post('/api/auth/google', async (req, res) => {
         const existingUser = await User.findOne({ email: userEmail });
         
         if (existingUser && existingUser.role === 'admin') {
-           return res.redirect(`https://entre-skill-hub.netlify.app/admin-dashboard.html?name=${encodeURIComponent(userName)}&role=admin`);
+           return res.redirect(`https://entre-skill-hub.netlify.app/admin-dashboard.html?name=${encodeURIComponent(userName)}&email=${encodeURIComponent(userEmail)}&role=admin`);
         } else if (existingUser && existingUser.role === 'mentor') {
-            return res.redirect(`https://entre-skill-hub.netlify.app/mentor-dashboard.html?name=${encodeURIComponent(userName)}`);
+            return res.redirect(`https://entre-skill-hub.netlify.app/mentor-dashboard.html?name=${encodeURIComponent(userName)}&email=${encodeURIComponent(userEmail)}`);
         } else {
-            return res.redirect(`https://entre-skill-hub.netlify.app/dashboard.html?name=${encodeURIComponent(userName)}`);
+            return res.redirect(`https://entre-skill-hub.netlify.app/dashboard.html?name=${encodeURIComponent(userName)}&email=${encodeURIComponent(userEmail)}`);
         }
     } catch (error) {
         res.redirect('https://entre-skill-hub.netlify.app/auth.html');
