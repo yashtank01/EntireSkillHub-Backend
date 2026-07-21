@@ -5,8 +5,6 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const mongoose = require('mongoose');
 const cors = require('cors');
-const nodemailer = require('nodemailer');
-const crypto = require('crypto');
 require('dotenv').config();
 
 // Models
@@ -49,7 +47,12 @@ app.post('/api/register', async (req, res) => {
 
         const newUser = new User({ name, email, password: hashedPassword, role: role || 'student' });
         await newUser.save();
-        res.status(201).json({ message: "Registration successful!" });
+
+        if (role === 'mentor') {
+            res.status(201).json({ message: "Registration successful! You will be able to login once the Admin approves your account." });
+        } else {
+            res.status(201).json({ message: "Registration successful!" });
+        }
     } catch (error) {
         res.status(500).json({ error: "Server error during registration" });
     }
@@ -63,6 +66,10 @@ app.post('/api/login', async (req, res) => {
 
         const isMatch = await bcrypt.compare(password, user.password);
         if (!isMatch) return res.status(400).json({ error: "Incorrect password!" });
+
+        if (user.role === 'mentor' && user.isMentorApproved === false) {
+            return res.status(403).json({ error: "Your profile is under review! You can login once Admin approves it." });
+        }
 
         res.status(200).json({ 
             message: "Login successful!",
@@ -103,42 +110,13 @@ app.get('/api/auth/google', (req, res) => {
     res.redirect('https://entre-skill-hub.netlify.app/auth.html'); 
 });
 
-app.post('/api/forgot-password', async (req, res) => {
-    try {
-        const { email } = req.body;
-        const user = await User.findOne({ email });
-        if (!user) return res.status(404).json({ error: "No account found with that email!" });
-
-        const resetToken = crypto.randomBytes(20).toString('hex');
-        user.resetPasswordToken = resetToken;
-        user.resetPasswordExpires = Date.now() + 15 * 60 * 1000;
-        await user.save();
-
-        const transporter = nodemailer.createTransport({
-            service: 'gmail',
-            auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS }
-        });
-
-        const resetLink = `https://entre-skill-hub.netlify.app/reset-password.html?token=${resetToken}`;
-        const mailOptions = {
-            from: process.env.EMAIL_USER,
-            to: user.email,
-            subject: 'EntreSkill Hub - Password Reset',
-            text: `Hello ${user.name},\n\nYou requested a password reset. Click this secure link to reset your password:\n\n${resetLink}\n\nThis link will expire in 15 minutes.`
-        };
-
-        await transporter.sendMail(mailOptions);
-        res.status(200).json({ message: "Password reset link sent to your email!" });
-    } catch (error) {
-        res.status(500).json({ error: "Failed to send email." });
-    }
-});
 
 // --- STUDENT DASHBOARD ROUTES ---
 app.post('/api/save-idea', async (req, res) => {
     try {
         const { idea, email } = req.body;
         console.log(`📌 Idea Bookmarked: ${idea} by ${email}`);
+
         if (!email) return res.status(400).json({ error: "User email is required." });
 
         const existingIdea = await SavedIdea.findOne({ ideaName: idea, userEmail: email });
@@ -155,7 +133,6 @@ app.post('/api/save-idea', async (req, res) => {
 app.get('/api/saved-ideas', async (req, res) => {
     try {
         const userEmail = req.query.email;
-        
         if (!userEmail) return res.status(400).json({ error: "Email is required." });
 
         const userIdeas = await SavedIdea.find({ userEmail: userEmail }).sort({ createdAt: -1 });
@@ -167,7 +144,6 @@ app.get('/api/saved-ideas', async (req, res) => {
 
 app.get('/api/content', async (req, res) => {
     try {
-        // Only fetch approved content for students
         const allContent = await Content.find({ isApproved: true }).sort({ createdAt: -1 });
         res.status(200).json(allContent);
     } catch (error) {
@@ -180,6 +156,7 @@ app.post('/api/request-mentor', async (req, res) => {
     try {
         const { mentor, email } = req.body;
         console.log(`✉️ Mentor Requested: ${mentor} by ${email}`);
+
         const existing = await MentorRequest.findOne({ mentorName: mentor, userEmail: email });
         if (existing) return res.status(400).json({ error: "Already requested!" });
 
@@ -204,7 +181,6 @@ app.get('/api/mentor-requests', async (req, res) => {
 app.post('/api/manage-request', async (req, res) => {
     try {
         const { action, studentName, mentorEmail } = req.body;
-        // Logic to update status would go here based on how you link mentors and requests
         res.status(200).json({ message: "Student request updated successfully!" });
     } catch (error) {
         res.status(500).json({ error: "Failed to update request" });
@@ -246,10 +222,15 @@ app.post('/api/approve-mentor', async (req, res) => {
 app.post('/api/upload-content', async (req, res) => {
     try {
         const { title, category, url, type, uploadedBy } = req.body;
+        console.log(`📤 New Content Upload Attempt: [${type}] ${title} by ${uploadedBy}`);
+
         const newContent = new Content({ title, category, url, type, uploadedBy, isApproved: false });
         await newContent.save();
+        
+        console.log("✅ Content Saved Successfully!");
         res.status(201).json({ message: "Uploaded to DB, waiting for admin approval!" });
     } catch (error) {
+        console.error("❌ Content Upload Error:", error);
         res.status(500).json({ error: "Failed to upload content." });
     }
 });
